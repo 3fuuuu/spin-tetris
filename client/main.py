@@ -26,6 +26,18 @@ COMBO_BONUS: dict[int, int] = {
 	7: 3,
 	8: 3,
 	9: 4,
+	10: 4,
+	11: 5,
+	12: 5,
+	13: 5,
+	14: 5,
+	15: 5,
+	16: 5,
+	17: 5,
+	18: 5,
+	19: 5,
+	20: 5,
+
 }
 
 PIECES: dict[str, list[list[tuple[int, int]]]] = {
@@ -177,7 +189,7 @@ class Board:
 				elif self.grid[cy][cx] is not None:
 					filled += 1
 			return piece.last_action_was_rotation and filled >= 3
-		return piece.last_action_was_rotation and piece.rotation_used_kick
+		return piece.last_action_was_rotation
 
 	def hold(self) -> None:
 	
@@ -341,7 +353,7 @@ def send_attack(from_idx: int, atk: int, boards: list[Board]) -> None:
 
 
 def draw_board(surf: pygame.Surface, board: Board, xoff: int, yoff: int) -> None:
-	# background
+
 	pygame.draw.rect(surf, (30,30,30), (xoff-4,yoff-4,COLS*CELL+8,ROWS*CELL+8))
 	for y in range(ROWS):
 		for x in range(COLS):
@@ -487,7 +499,7 @@ def main() -> None:
 
 			font = pygame.font.SysFont(None, 22)
 			screen.blit(font.render('Player 1: A/D move, S soft, W drop, Q/E rotate', True, (220,220,220)), (20, HEIGHT-24))
-			screen.blit(font.render('Player 2: ←/→ move, ↓ soft, ↑ drop, ,/. rotate', True, (220,220,220)), (WIDTH//2, HEIGHT-24))
+			screen.blit(font.render('Player 2: LEFT/RIGHT move, DOWN soft, UP drop, ,/. rotate', True, (220,220,220)), (WIDTH//2, HEIGHT-24))
 
 		pygame.display.flip()
 
