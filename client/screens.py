@@ -35,7 +35,7 @@ def draw_start_screen(surface: pygame.Surface) -> None:
 	draw_centered_text(surface, "Spin Tetris", height // 2 - 150, big_font, (240, 240, 255))
 	draw_centered_text(surface, "Press Enter to Start", height // 2 + 10, mid_font, (255, 230, 120))
 	draw_centered_text(surface, "P1: A/D move  S soft  W hard  Q/E rotate  Z hold", height // 2 + 70, small_font, (210, 210, 220))
-	draw_centered_text(surface, "P2: ←/→ move  ↓ soft  ↑ hard  ,/. rotate  RightShift hold", height // 2 + 102, small_font, (210, 210, 220))
+	draw_centered_text(surface, "P2: LEFT/RIGHT move  DOWN soft  UP hard  ,/. rotate  RightShift hold", height // 2 + 102, small_font, (210, 210, 220))
 
 
 def draw_end_screen(surface: pygame.Surface, data: EndScreenData, is_win: bool) -> None:

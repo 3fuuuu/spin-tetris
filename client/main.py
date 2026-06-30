@@ -9,7 +9,7 @@ from screens import EndScreenData, ScreenState, draw_end_screen, draw_start_scre
 
 COLS, ROWS = 10, 20
 CELL = 24
-WIDTH = COLS * CELL * 2 + 200
+WIDTH = COLS * CELL * 2 + 280
 HEIGHT = ROWS * CELL + 60
 
 FPS = 60
@@ -270,7 +270,7 @@ class Board:
 		self.add_garbage(self.pending_garbage)
 		self.pending_garbage = 0
 
-	def update_spin_gauge(self, spin: bool):
+	def update_spin_gauge(self, spin: bool) -> None:
 
 		if self.spin_boost_timer > 0:
 			return
@@ -309,6 +309,7 @@ class Board:
 		if not self.alive:
 			return False
 		if self.try_move(0, 1):
+			assert self.piece is not None
 			self.piece.last_action_was_rotation = False
 			self.piece.rotation_used_kick = False
 			return True
@@ -576,9 +577,7 @@ def main() -> None:
 			draw_board(screen, boards[0], 40, 30)
 			draw_board(screen, boards[1], 40 + COLS*CELL + 120, 30)
 
-			font = pygame.font.SysFont(None, 22)
-			screen.blit(font.render('Player 1: A/D move, S soft, W drop, Q/E rotate', True, (220,220,220)), (20, HEIGHT-24))
-			screen.blit(font.render('Player 2: LEFT/RIGHT move, DOWN soft, UP drop, ,/. rotate', True, (220,220,220)), (WIDTH//2, HEIGHT-24))
+		
 
 		pygame.display.flip()
 
