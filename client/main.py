@@ -103,7 +103,12 @@ class Piece:
 		if not ok:
 			self.x -= dx
 			self.y -= dy
+		else:
+			if dx != 0 or dy != 0:
+				self.last_action_was_rotation = False
+				self.rotation_used_kick = False
 		return ok
+	
 
 	def set_position(self, x: int, y: int) -> None:
 		self.x = x
@@ -127,6 +132,8 @@ class Board:
 		self.alive: bool = True
 		self._fill_next_queue()
 		self.spawn()
+		self.spin_gauge = 0    
+		self.spin_boost_timer = 0  
 
 	def _refill_bag(self) -> None:
 		types = list(PIECES.keys())
@@ -167,14 +174,17 @@ class Board:
 	def _update_attack_state(self, lines: int, spin: bool) -> None:
 		if lines <= 0:
 			self.combo_chain = 0
-			return
-		self.combo_chain = 1 if self.combo_chain == 0 else self.combo_chain + 1
-		if not (spin or lines == 4):
-			self.back_to_back = False
 		else:
+			self.combo_chain += 1
+		if spin or lines == 4:
 			self.back_to_back = True
+		else: 
+			self.back_to_back = False
 
 	def _is_spin(self, piece: Piece) -> bool:
+		if not piece.last_action_was_rotation:
+			return False
+		
 		if piece.kind == 'T':
 			corners = [
 				(piece.x, piece.y),
@@ -188,8 +198,31 @@ class Board:
 					filled += 1
 				elif self.grid[cy][cx] is not None:
 					filled += 1
-			return piece.last_action_was_rotation and filled >= 3
-		return piece.last_action_was_rotation
+
+			return filled >= 3
+		
+		#S,Z,L,J,I spin
+		if piece.kind in ("S", "Z", "L", "J", "I"):
+			if not piece.rotation_used_kick:
+				return False
+			blocked = 0
+			own = set(piece.blocks)
+		    
+			for x,y in piece.blocks:
+				for dx, dy in ((1,0),(-1,0),(0,1),(0,-1)):
+					nx, ny = x+dx, y+dy
+				   
+					if (nx,ny) in own:
+						continue
+					if nx < 0 or nx >= COLS or ny >= ROWS:
+						blocked += 1
+					elif ny >= 0 and self.grid[ny][nx] is not None:
+						blocked += 1
+					   
+			return blocked >= 6
+		return False
+
+		
 
 	def hold(self) -> None:
 	
@@ -237,6 +270,18 @@ class Board:
 		self.add_garbage(self.pending_garbage)
 		self.pending_garbage = 0
 
+	def update_spin_gauge(self, spin: bool):
+
+		if self.spin_boost_timer > 0:
+			return
+
+		if spin:
+			self.spin_gauge += 25
+
+			if self.spin_gauge >= 100:
+				self.spin_gauge = 0
+				self.spin_boost_timer = FPS * 5
+
 	def try_rotate(self, direction: int) -> bool:
 		if not self.alive:
 			return False
@@ -255,6 +300,8 @@ class Board:
 		assert self.piece is not None
 		moved = self.piece.move(dx, dy, self)
 		if moved:
+			self.piece.last_action_was_rotation = False
+			self.piece.rotation_used_kick = False
 			self._note_ground_contact(after_action=True)
 		return moved
 
@@ -262,6 +309,8 @@ class Board:
 		if not self.alive:
 			return False
 		if self.try_move(0, 1):
+			self.piece.last_action_was_rotation = False
+			self.piece.rotation_used_kick = False
 			return True
 		self._note_ground_contact(after_action=False)
 		return False
@@ -279,16 +328,29 @@ class Board:
 		if not self.alive:
 			return 0, False, 0
 		lines, spin = self.lock_piece_and_clear()
-		next_combo_chain = 0 if lines <= 0 else self.combo_chain + 1
-		atk = calc_attack(lines, spin, next_combo_chain, self.back_to_back)
+
+		old_combo = self.combo_chain
+		old_b2b = self.back_to_back
+
+		if lines == 0:
+			combo = 0
+		else:
+			combo = old_combo +1
+		atk = calc_attack(lines, spin, combo, old_b2b)
+		self.update_spin_gauge(spin)
 		self._update_attack_state(lines, spin)
 		return lines, spin, atk
 
 	def _can_fall(self) -> bool:
 		if not self.alive or self.piece is None:
 			return False
-		assert self.piece is not None
-		return self.piece.move(0, 1, self)
+		
+		p=self.piece
+		p.y += 1
+		can = p._fits(self)
+		p.y -= 1
+
+		return can
 
 	def _note_ground_contact(self, after_action: bool) -> None:
 		if not self.alive:
@@ -331,13 +393,27 @@ class Board:
 def calc_attack(lines: int, spin: bool, combo_chain: int, back_to_back: bool) -> int:
 	if lines <= 0:
 		return 0
-	base = {1: 0, 2: 1, 3: 2, 4: 4}.get(lines, 0)
-	attack = lines * 2 if spin else base
-	combo_bonus = COMBO_BONUS.get(combo_chain, 4 if combo_chain >= 10 else 0)
-	attack += combo_bonus
-	if (spin or lines == 4) and back_to_back:
+	LINE_ATTACK = {
+    	1:0,
+    	2:1,
+    	3:2,
+    	4:4,
+	}
+
+	SPIN_ATTACK = {
+    	1:2,
+    	2:4,
+    	3:6,
+	}
+	if spin:
+		attack = SPIN_ATTACK.get(lines, 0)
+	else:
+		attack = LINE_ATTACK.get(lines, 0)
+	attack+=COMBO_BONUS.get(combo_chain, 5)
+	if back_to_back and(spin or lines == 4):
 		attack += 1
 	return attack
+
 
 
 def send_attack(from_idx: int, atk: int, boards: list[Board]) -> None:
@@ -455,6 +531,9 @@ def main() -> None:
 						b.hold()
 
 		if state == "playing":
+			for b in boards:
+				if b.spin_boost_timer > 0:
+					b.spin_boost_timer -= 1
 
 			if gravity_timer >= gravity_interval:
 				gravity_timer = 0
